@@ -139,36 +139,4 @@ Located in `aadr/`. Source: [Harvard Dataverse doi:10.7910/DVN/FFIDCW](https://d
 | `v66.p1_1240K.aadr.PUB.anno` | TSV | Sample metadata |
 | `v66.p1_1240K.geno/.snp/.ind` | PACKEDANCESTRYMAP | Converted, use these for analysis |
 
-The TGENO → PACKEDANCESTRYMAP conversion is done and complete. Do not re-run it unless the source files change.
-
-## Workflow status
-
-1. ~~Convert AADR TGENO → PACKEDANCESTRYMAP~~ (done)
-2. ~~Convert 23andMe → PLINK → EIGENSTRAT~~ (done)
-3. ~~Merge with AADR~~ (done, 725,361 SNPs)
-4. ~~qpAdm ancestry analysis~~ (done — ~47% Steppe, ~15% Balkan HG, ~38% Anatolian EEF; Iron Gates proxy)
-5. ~~f3 outgroup / f4 / qpGraph / MDS~~ (done)
-6. ~~qpAdm rotating~~ (done — EEF required in all passing models; Iron Gates in pool)
-7. ~~f3 admixture test~~ (done — 0/210 pairs significant, expected for N=1)
-8. ~~Richer MDS~~ (done — 42 populations, Balkan prehistory focus)
-9. ~~Direct CHG test~~ (done — no direct CHG; all signal via Yamnaya)
-10. ~~DATES LD dating~~ (done — n=59±191 gen; too wide for single individual)
-11. ~~Chromosome painting~~ (done — Steppe 32–47% per chromosome, allele-freq MLE)
-12. ~~Report~~ (done — `me/ancestry_report.pdf`, 5 pages)
-13. ~~Slavic/pre-Slavic model~~ (done — ~47% Slavic + ~53% Iron Age Balkans; best proxy NorthMacedonia_IA/Croatia_EIA; Roman/Byzantine component ~14-16% consistent with G25 but below qpAdm detection threshold at N=1)
-14. ~~Pooled Balkan IA~~ (done — Croatia_EIA + NorthMacedonia_IA + Bulgaria_KapitanAndreevo_EIA pooled to N=50; 2-source gives 58% Slavic ±10.8%; SE floor reached; Roman Italian z=0.65 undetectable)
-15. ~~Focused Slavic model~~ (done — 2 Slavic proxies × 4 Balkan IA × 4 Roman/Byzantine proxies tested; all Byzantine variants (Medieval/LateAntiquity/EarlyMedieval) contribute 0% and are undetectable; Italy_Lazio_ImperialRoman_Roman shows consistent ~13% across all Balkan IA proxies but z<1 at N=1; 2-source Slavic + Balkan IA is the cleanest model; NorthMacedonia_IA gives ~61%/39% split)
-
-## Final ancestry summary
-
-**Deep time (Neolithic/Bronze Age components):**
-- ~47% Steppe pastoralist (Yamnaya)
-- ~38% Anatolian early farmer (Turkey_N)
-- ~15% Balkan hunter-gatherer (Iron Gates Mesolithic)
-
-**Historical (medieval mixing):**
-- ~47–61% Slavic migrants (Poland_EarlyMedieval_Slav, 6th–9th c. CE)
-- ~39–53% pre-Slavic Balkan Iron Age substrate
-- ~13% Roman-era Italian ancestry (directional, below detection threshold at N=1)
-
-Byzantine ancestry (all proxies tested) is undetectable at z≈0. The wide Slavic range reflects proxy choice — NorthMacedonia_IA (geographically closest) gives ~61% Slavic.
+This conversion is not shipped in the repo (`aadr/` is gitignored) — a fresh clone needs to run it (see README.md's AADR section). Once produced locally, there's no need to re-run it unless the source files change.
