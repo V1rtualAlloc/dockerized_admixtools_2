@@ -63,7 +63,27 @@ Download the four raw files above with the provided script (requires `PROJECT_RO
 .\scripts\download_aadr.ps1
 ```
 
-The PACKEDANCESTRYMAP conversion (`v66.p1_1240K.geno/.snp/.ind`) is not downloaded — produce it yourself with `convertf` (see `docker/admixtools/`).
+The PACKEDANCESTRYMAP conversion (`v66.p1_1240K.geno/.snp/.ind`) is not downloaded — produce it yourself with `convertf` from the `eigensoft` image (build it first, see [Docker images](#docker-images) below).
+
+Create `aadr/convert_docker.par`:
+
+```
+genotypename:    /data/v66.p1_1240K.aadr.patch.PUB.geno
+snpname:         /data/v66.p1_1240K.aadr.patch.PUB.snp
+indivname:       /data/v66.p1_1240K.aadr.patch.PUB.ind
+outputformat:    PACKEDANCESTRYMAP
+genooutfilename: /data/v66.p1_1240K.geno
+snpoutfilename:  /data/v66.p1_1240K.snp
+indoutfilename:  /data/v66.p1_1240K.ind
+```
+
+Then run:
+
+```bash
+docker run --rm -v $PROJECT_ROOT/aadr:/data eigensoft -p /data/convert_docker.par
+```
+
+This reads the whole 7.1 GB `.geno` file, so expect it to take a few minutes and to need roughly another 7 GB of free disk for the output.
 
 ## Docker images
 
