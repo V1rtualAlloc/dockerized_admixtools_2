@@ -1,0 +1,9 @@
+# Genotype / reference data (large, not for public distribution)
+/aadr/
+/me/
+/rolloff/
+/samples/
+
+# Stray build/debug artifacts
+gmon.out
+me.txt

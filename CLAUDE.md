@@ -1,0 +1,169 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Comparing personal 23andMe genotype data against the Allen Ancient DNA Resource (AADR) using ADMIXTOOLS2 (R package). The goal is to model ancestry as mixtures of ancient populations using qpAdm and related f-statistic methods.
+
+## Toolchain
+
+Two distinct tools are involved — do not confuse them:
+
+- **AdmixTools** (C binaries) — original Reich Lab command-line suite: `convertf`, `mergeit`, `qpAdm`, etc. Used for data preparation (format conversion, merging). Built via the `Dockerfile`.
+- **ADMIXTOOLS2** (`admixtools` R package, `uqrmaie1/admixtools`) — R reimplementation used for the actual analyses. Installed separately in R.
+
+## Docker images
+
+Always use absolute paths in `-v` mounts — tilde expansion is unreliable with Docker.
+
+### `eigensoft` — AdmixTools + plink 1.9
+
+```bash
+docker build -t eigensoft /home/genetics/ADMIXTOOLS2/docker/admixtools/
+
+# convertf (default entrypoint)
+docker run --rm -v /home/genetics/ADMIXTOOLS2/aadr:/data eigensoft -p /data/convert_docker.par
+
+# other binaries
+docker run --rm --entrypoint mergeit -v /home/genetics/ADMIXTOOLS2:/data eigensoft -p /data/merge.par
+docker run --rm --entrypoint plink   -v /home/genetics/ADMIXTOOLS2:/data eigensoft --23file /data/me/me_sorted.txt ...
+```
+
+### `admixtools2` — R + admixtools package
+
+```bash
+docker build -t admixtools2 /home/genetics/ADMIXTOOLS2/docker/r-analysis/
+
+docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/qpadm.R
+```
+
+### `dates` — DATES v753 (Moorjani lab, LD dating)
+
+```bash
+docker build -t dates /home/genetics/ADMIXTOOLS2/docker/dates/
+
+# Step 1: run DATES (writes output to rolloff/output/)
+docker run --rm -v /home/genetics/ADMIXTOOLS2:/data dates -p /data/rolloff/dates.par
+
+# Step 2: fit exponential and plot (uses admixtools2 image)
+docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/rolloff_plot.R
+```
+
+Parameter file: `rolloff/dates.par`. Admixlist (source1, source2, target, outdir): `rolloff/admixlist.txt`.
+Output in `rolloff/output/`. Single-individual estimates have very wide SE — interpret qualitatively only.
+
+## Scripts
+
+All scripts in `scripts/` source `scripts/config.R` for shared configuration. Edit config.R to change the target sample.
+
+| Script | Purpose |
+|--------|---------|
+| `config.R` | TARGET, BACKGROUND, MERGED_PREFIX, F2_DIR, MODELS, REFERENCES |
+| `qpadm.R` | 3-source admixture model + comparison table |
+| `qpadm_rotate.R` | Systematic 2- and 3-source model search over ancient source pool |
+| `f3_outgroup.R` | Outgroup f3 ranking by affinity to target |
+| `f3_admixture.R` | Admixture f3: all source pairs tested for negative f3 (admixture signal) |
+| `f4.R` | D-statistics: Steppe and WHG affinity tests |
+| `qpgraph.R` | Admixture graph fitting |
+| `chg_test.R` | 3-model comparison to test for direct CHG ancestry beyond Yamnaya |
+| `pca.R` | MDS from pairwise f2 distances (42-population richer set, separate f2 cache) |
+| `rolloff_plot.R` | Fits exponential to DATES output; reports date estimate with jackknife SE |
+| `chr_painting.R` | Per-chromosome ancestry proportions via allele-frequency MLE (requires prep step below) |
+| `report.R` | 5-page PDF report combining all key results; requires `me/chr_painting.csv` |
+| `slavic_model.R` | Historical Slavic/pre-Slavic model; structured rotating search (Slavic x Balkan-IA x Roman/Byzantine) |
+| `slavic_modern.R` | Tests best Slavic models on modern Balkan/European reference populations; uses clean f2 cache |
+| `slavic_pooled.R` | Pools Croatia_EIA + NorthMacedonia_IA + Bulgaria_KapitanAndreevo_EIA → Balkans_IA (N=50); builds `me/f2_pooled/` cache |
+| `slavic_focused.R` | Focused Slavic model: 2 Slavic proxies × 4 Balkan IA proxies × 4 Roman proxies; uses `me/f2_focused/` cache |
+| `iron_gates_test.R` | Compares Loschbour vs Iron Gates vs EHG as the HG proxy in the 3-source deep ancestry model; uses `me/f2_ig/` cache |
+| `slavic_pie.R` | Pie chart for the best Slavic model (Poland_EarlyMedieval_Slav + Croatia_EIA); re-runs qpAdm and saves `me/slavic_pie.pdf`; uses `me/f2_focused/` cache |
+
+### f2 cache pollution warning
+
+`extract_f2` computes f2 over the SNP intersection across **all** populations in the call. Small ancient populations with high missingness (N<10, especially N=4) silently veto thousands of SNPs from every pairwise comparison in the cache, inflating SEs and distorting weights. Keep separate caches:
+
+- `me/f2/` — main cache (deep ancestry: Yamnaya, IronGates, Turkey_N)
+- `me/f2_modern/` — Slavic model cache (slavic_model.R + slavic_modern.R); excludes small ancient populations like Bulgaria_Kazanlak_LIA and Albania_Cinamak_IA
+- `me/f2_pooled/` — pooled Balkan IA cache (slavic_pooled.R); uses `me/merged_pooled.ind` with remapped population labels
+- `me/f2_focused/` — focused Slavic model cache (slavic_focused.R); 20 populations, excludes small pops
+- `me/f2_ig/` — HG proxy comparison cache (iron_gates_test.R); Loschbour vs Iron Gates vs EHG
+
+Do not add `Turkey_ImperialRoman` (N=4) or other N<6 populations to any shared cache — they silently veto SNPs across all pairs.
+
+### SE floor for single-individual targets
+
+The jackknife SE in qpAdm has a hard floor of ~±10% when the target is N=1, regardless of source population size. This comes from ~1700 genome blocks used in the jackknife — the signal varies that much block-to-block across one person's genome. Pooling sources (N=50) reduced SE from ±12% → ±10.8%, but cannot go lower. To reach ±5%, the target needs N≥16 individuals — either family members added to the merged dataset, or a modern reference population with sufficient sample size used as a proxy target.
+
+### Chromosome painting prep step
+
+Run once to extract text EIGENSTRAT subset (me + 3 source populations, 117 individuals):
+
+```bash
+docker run --rm --entrypoint convertf -v /home/genetics/ADMIXTOOLS2:/data eigensoft \
+  -p /data/me/subset_extract.par
+# Output: me/subset.geno / .snp / .ind  (~84 MB text)
+```
+
+Then run the analysis:
+
+```bash
+docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/chr_painting.R
+```
+
+Output: `me/chr_painting.pdf` and `me/chr_painting.csv`. EIGENSTRAT format is SNP-major (rows = SNPs, cols = individuals). Steppe proportions vary 32–47% across chromosomes; Balkan HG 4–10%; Anatolian 44–63%.
+
+### Report
+
+Requires `me/chr_painting.csv` (run `chr_painting.R` first). Output: `me/ancestry_report.pdf`.
+
+```bash
+docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/report.R
+```
+
+## Data
+
+### AADR v66.p1 (1240k SNP panel)
+
+Located in `aadr/`. Source: [Harvard Dataverse doi:10.7910/DVN/FFIDCW](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/FFIDCW).
+
+| File | Format | Notes |
+|------|--------|-------|
+| `v66.p1_1240K.aadr.patch.PUB.geno` | TGENO | Original download, 7.1 GB |
+| `v66.p1_1240K.aadr.patch.PUB.snp` | — | SNP info |
+| `v66.p1_1240K.aadr.patch.PUB.ind` | — | 23,089 individuals |
+| `v66.p1_1240K.aadr.PUB.anno` | TSV | Sample metadata |
+| `v66.p1_1240K.geno/.snp/.ind` | PACKEDANCESTRYMAP | Converted, use these for analysis |
+
+The TGENO → PACKEDANCESTRYMAP conversion is done and complete. Do not re-run it unless the source files change.
+
+## Workflow status
+
+1. ~~Convert AADR TGENO → PACKEDANCESTRYMAP~~ (done)
+2. ~~Convert 23andMe → PLINK → EIGENSTRAT~~ (done)
+3. ~~Merge with AADR~~ (done, 725,361 SNPs)
+4. ~~qpAdm ancestry analysis~~ (done — ~47% Steppe, ~15% Balkan HG, ~38% Anatolian EEF; Iron Gates proxy)
+5. ~~f3 outgroup / f4 / qpGraph / MDS~~ (done)
+6. ~~qpAdm rotating~~ (done — EEF required in all passing models; Iron Gates in pool)
+7. ~~f3 admixture test~~ (done — 0/210 pairs significant, expected for N=1)
+8. ~~Richer MDS~~ (done — 42 populations, Balkan prehistory focus)
+9. ~~Direct CHG test~~ (done — no direct CHG; all signal via Yamnaya)
+10. ~~DATES LD dating~~ (done — n=59±191 gen; too wide for single individual)
+11. ~~Chromosome painting~~ (done — Steppe 32–47% per chromosome, allele-freq MLE)
+12. ~~Report~~ (done — `me/ancestry_report.pdf`, 5 pages)
+13. ~~Slavic/pre-Slavic model~~ (done — ~47% Slavic + ~53% Iron Age Balkans; best proxy NorthMacedonia_IA/Croatia_EIA; Roman/Byzantine component ~14-16% consistent with G25 but below qpAdm detection threshold at N=1)
+14. ~~Pooled Balkan IA~~ (done — Croatia_EIA + NorthMacedonia_IA + Bulgaria_KapitanAndreevo_EIA pooled to N=50; 2-source gives 58% Slavic ±10.8%; SE floor reached; Roman Italian z=0.65 undetectable)
+15. ~~Focused Slavic model~~ (done — 2 Slavic proxies × 4 Balkan IA × 4 Roman/Byzantine proxies tested; all Byzantine variants (Medieval/LateAntiquity/EarlyMedieval) contribute 0% and are undetectable; Italy_Lazio_ImperialRoman_Roman shows consistent ~13% across all Balkan IA proxies but z<1 at N=1; 2-source Slavic + Balkan IA is the cleanest model; NorthMacedonia_IA gives ~61%/39% split)
+
+## Final ancestry summary
+
+**Deep time (Neolithic/Bronze Age components):**
+- ~47% Steppe pastoralist (Yamnaya)
+- ~38% Anatolian early farmer (Turkey_N)
+- ~15% Balkan hunter-gatherer (Iron Gates Mesolithic)
+
+**Historical (medieval mixing):**
+- ~47–61% Slavic migrants (Poland_EarlyMedieval_Slav, 6th–9th c. CE)
+- ~39–53% pre-Slavic Balkan Iron Age substrate
+- ~13% Roman-era Italian ancestry (directional, below detection threshold at N=1)
+
+Byzantine ancestry (all proxies tested) is undetectable at z≈0. The wide Slavic range reflects proxy choice — NorthMacedonia_IA (geographically closest) gives ~61% Slavic.
