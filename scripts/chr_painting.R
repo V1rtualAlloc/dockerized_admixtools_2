@@ -16,8 +16,8 @@ if (!file.exists(SUBSET_GENO))
        "-p /data/me/subset_extract.par")
 
 model   <- MODELS[[BACKGROUND]]
-sources <- model$sources          # [Yamnaya, WHG, Turkey_N]
-labels  <- c("Steppe", "Balkan HG", "Anatolian")
+sources <- model$sources          # exactly 3 sources expected; used as-is for labels
+labels  <- sources
 
 snp <- read.table(SUBSET_SNP, col.names = c("rsid","chr","gpos","pos","ref","alt"),
                   colClasses = c("character","integer","numeric","integer","character","character"))
@@ -69,8 +69,10 @@ neg_log_lik <- function(x, idx) {
 }
 
 cat("Running per-chromosome MLE...\n\n")
-cat(sprintf("  %-3s  %8s  %7s  %7s  %9s\n", "chr","n_SNPs","Steppe","WHG","Anatolian"))
-cat(strrep("-", 46), "\n")
+cat(sprintf("  %-3s  %8s", "chr", "n_SNPs"))
+for (lbl in labels) cat(sprintf("  %14s", lbl))
+cat("\n")
+cat(strrep("-", 20 + 16*length(labels)), "\n")
 
 chr_results <- map_dfr(1:22, function(chr) {
   idx <- which(snp$chr == chr & g_me != 9L)
@@ -84,40 +86,44 @@ chr_results <- map_dfr(1:22, function(chr) {
   if (is.null(opt)) return(NULL)
 
   a <- softmax3(opt$par)
-  cat(sprintf("  %-3d  %8d  %6.1f%%  %6.1f%%  %8.1f%%\n",
-              chr, length(idx), a[1]*100, a[2]*100, a[3]*100))
-  tibble(chr=chr, n_snps=length(idx), steppe=a[1], whg=a[2], anatolian=a[3])
+  cat(sprintf("  %-3d  %8d", chr, length(idx)))
+  for (v in a) cat(sprintf("  %13.1f%%", v*100))
+  cat("\n")
+  as_tibble(c(list(chr=chr, n_snps=length(idx)), setNames(as.list(a), sources)))
 })
 
-wm <- function(x) weighted.mean(chr_results[[x]], chr_results$n_snps) * 100
-cat(strrep("-", 46), "\n")
-cat(sprintf("  %-3s  %8s  %6.1f%%  %6.1f%%  %8.1f%%\n",
-            "wt.m", "", wm("steppe"), wm("whg"), wm("anatolian")))
-cat("\nRange (Steppe):",
-    sprintf("%.0f%% - %.0f%%", min(chr_results$steppe)*100, max(chr_results$steppe)*100), "\n")
-cat("Range (WHG):",
-    sprintf("%.0f%% - %.0f%%", min(chr_results$whg)*100, max(chr_results$whg)*100), "\n")
-cat("Range (Anatolian):",
-    sprintf("%.0f%% - %.0f%%", min(chr_results$anatolian)*100, max(chr_results$anatolian)*100), "\n\n")
+wm <- function(s) weighted.mean(chr_results[[s]], chr_results$n_snps) * 100
+cat(strrep("-", 20 + 16*length(labels)), "\n")
+cat(sprintf("  %-3s  %8s", "wt.m", ""))
+for (s in sources) cat(sprintf("  %13.1f%%", wm(s)))
+cat("\n")
+
+for (i in seq_along(sources)) {
+  cat(sprintf("Range (%s): %.0f%% - %.0f%%\n", labels[i],
+              min(chr_results[[sources[i]]])*100, max(chr_results[[sources[i]]])*100))
+}
+cat("\n")
 
 # Plot
+PALETTE_FILL  <- setNames(c("#E69F00", "#56B4E9", "#009E73"), labels)
+PALETTE_COLOR <- setNames(c("#B87D00", "#2E7CA8", "#007050"), labels)
+
 plot_dat <- chr_results %>%
-  select(chr, Steppe=steppe, WHG=whg, Anatolian=anatolian) %>%
-  pivot_longer(-chr, names_to="ancestry", values_to="prop") %>%
-  mutate(ancestry = factor(ancestry, levels=c("Steppe","WHG","Anatolian")),
+  pivot_longer(all_of(sources), names_to="ancestry", values_to="prop") %>%
+  mutate(ancestry = factor(ancestry, levels=labels),
          chr = factor(chr, levels=1:22))
 
 means_df <- tibble(
-  ancestry = factor(c("Steppe","WHG","Anatolian"), levels=c("Steppe","WHG","Anatolian")),
-  mean = c(wm("steppe"), wm("whg"), wm("anatolian")) / 100
+  ancestry = factor(labels, levels=labels),
+  mean = sapply(sources, wm) / 100
 )
 
 p <- ggplot(plot_dat, aes(chr, prop*100, fill=ancestry)) +
   geom_col(width=0.8) +
   geom_hline(data=means_df, aes(yintercept=mean*100, color=ancestry),
              linetype="dashed", linewidth=0.7, show.legend=FALSE) +
-  scale_fill_manual(values=c(Steppe="#E69F00", WHG="#56B4E9", Anatolian="#009E73")) +
-  scale_color_manual(values=c(Steppe="#B87D00", WHG="#2E7CA8", Anatolian="#007050")) +
+  scale_fill_manual(values=PALETTE_FILL) +
+  scale_color_manual(values=PALETTE_COLOR) +
   scale_y_continuous(limits=c(0,105), breaks=seq(0,100,20),
                      labels=function(x) paste0(x,"%")) +
   labs(title   = paste("Chromosome ancestry painting -", TARGET),

@@ -121,6 +121,10 @@ Parameter file: `rolloff/dates.par`. Admixlist file: `rolloff/admixlist.txt` (fo
 
 All analysis scripts live in `scripts/`. Edit `scripts/config.R` to set the target sample and paths — all other scripts source it automatically.
 
+### Generic — work for any target
+
+Driven entirely by `config.R` (`TARGET`, `BACKGROUND`, `MODELS`). Point `config.R` at your own merged dataset and these run as-is, for any ancestry background.
+
 | Script | What it does |
 |--------|-------------|
 | `config.R` | Shared config: TARGET, BACKGROUND, MERGED_PREFIX, F2_DIR, MODELS, REFERENCES |
@@ -130,14 +134,24 @@ All analysis scripts live in `scripts/`. Edit `scripts/config.R` to set the targ
 | `f3_admixture.R` | Tests all source pairs for admixture signal (negative f3) |
 | `f4.R` | D-statistics: tests excess Steppe / WHG affinity vs reference populations |
 | `qpgraph.R` | Fits an admixture graph (automated search, numadmix=2) |
-| `chg_test.R` | 3-model comparison to test for direct CHG ancestry beyond Yamnaya |
 | `pca.R` | MDS from pairwise f2 distances; 28-pop and 42-pop (Balkan focus) versions |
 | `rolloff_plot.R` | Fits exponential to DATES output; reports date estimate with jackknife SE |
 | `chr_painting.R` | Per-chromosome ancestry via allele-frequency MLE (see prep step below) |
-| `report.R` | 5-page PDF report: title summary, qpAdm, rotating models, f3 outgroup, chromosome painting |
+
+### Case study — the author's own Balkan/Slavic ancestry analysis
+
+These hardcode specific ancient/historical population names (e.g. `Poland_EarlyMedieval_Slav`, `Croatia_EIA`, `Serbia_IronGates_Mesolithic`) and, in `report.R`'s case, pre-written interpretive text about one specific genome. They're a worked example of the workflow, not templates — running them against a different target requires editing the population lists (and, for `report.R`, the prose) by hand, not just changing `config.R`.
+
+| Script | What it does |
+|--------|-------------|
+| `chg_test.R` | 3-model comparison to test for direct CHG ancestry beyond Yamnaya |
+| `iron_gates_test.R` | Compares Loschbour vs Iron Gates vs EHG as the HG proxy in the 3-source model |
+| `report.R` | 5-page PDF report: title summary, qpAdm, rotating models, f3 outgroup, chromosome painting, Slavic model |
 | `slavic_model.R` | Historical Slavic/pre-Slavic model for the target; structured rotating search (Slavic x Balkan-IA x Roman/Byzantine pool); uses `me/f2_slavic/` cache |
 | `slavic_modern.R` | Tests the best Slavic models on modern Balkan/European reference populations (Bulgarian, Albanian, Greek, Hungarian, Czech, Polish, Russian); uses `me/f2_modern/` cache |
 | `slavic_pooled.R` | Pools Croatia_EIA + NorthMacedonia_IA + Bulgaria_KapitanAndreevo_EIA → Balkans_IA (N=50) to reduce SE; creates `me/merged_pooled.ind` and `me/f2_pooled/` cache |
+| `slavic_focused.R` | Focused Slavic model: 2 Slavic proxies × 4 Balkan IA proxies × 4 Roman proxies |
+| `slavic_outgroup_test.R` | Tests alternate outgroup sets for the Slavic model |
 | `slavic_pie.R` | Pie chart for the best Slavic model (Poland_EarlyMedieval_Slav + Croatia_EIA); saves `me/slavic_pie.pdf`; uses `me/f2_focused/` cache |
 
 Run any script with:

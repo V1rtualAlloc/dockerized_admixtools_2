@@ -274,17 +274,22 @@ if (!is.null(f3_res)) {
 cat("Loading chromosome painting results...\n")
 
 if (file.exists(CHR_CSV)) {
+  # chr_painting.R (run against the same config.R) names its weight columns
+  # after the actual source populations, e.g. sources[1] == "Russia_Samara_EBA_Yamnaya".
   chr_res <- read_csv(CHR_CSV, show_col_types=FALSE)
   chr_dat <- chr_res %>%
-    select(chr, Steppe=steppe, WHG=whg, Anatolian=anatolian) %>%
+    transmute(chr,
+              Steppe    = .data[[sources[1]]],
+              WHG       = .data[[sources[2]]],
+              Anatolian = .data[[sources[3]]]) %>%
     pivot_longer(-chr, names_to="ancestry", values_to="prop") %>%
     mutate(ancestry=factor(ancestry, levels=c("Steppe","WHG","Anatolian")),
            chr=factor(chr, levels=1:22))
 
   chr_means <- chr_res %>%
-    summarise(Steppe=weighted.mean(steppe,n_snps),
-              WHG=weighted.mean(whg,n_snps),
-              Anatolian=weighted.mean(anatolian,n_snps)) %>%
+    summarise(Steppe=weighted.mean(.data[[sources[1]]],n_snps),
+              WHG=weighted.mean(.data[[sources[2]]],n_snps),
+              Anatolian=weighted.mean(.data[[sources[3]]],n_snps)) %>%
     pivot_longer(everything(), names_to="ancestry", values_to="mean") %>%
     mutate(ancestry=factor(ancestry, levels=c("Steppe","WHG","Anatolian")))
 
