@@ -15,39 +15,41 @@ Two distinct tools are involved — do not confuse them:
 
 ## Docker images
 
-Always use absolute paths in `-v` mounts — tilde expansion is unreliable with Docker.
+Every command below mounts the repo root into a container at `/data`. Set `PROJECT_ROOT` once per shell to the absolute path where this repo lives — copy `.env.example` to `.env`, set `PROJECT_ROOT` there, then run `set -a && source .env && set +a` before running the commands below.
+
+Always use an absolute path — tilde expansion is unreliable with Docker's `-v` flag.
 
 ### `eigensoft` — AdmixTools + plink 1.9
 
 ```bash
-docker build -t eigensoft /home/genetics/ADMIXTOOLS2/docker/admixtools/
+docker build -t eigensoft $PROJECT_ROOT/docker/admixtools/
 
 # convertf (default entrypoint)
-docker run --rm -v /home/genetics/ADMIXTOOLS2/aadr:/data eigensoft -p /data/convert_docker.par
+docker run --rm -v $PROJECT_ROOT/aadr:/data eigensoft -p /data/convert_docker.par
 
 # other binaries
-docker run --rm --entrypoint mergeit -v /home/genetics/ADMIXTOOLS2:/data eigensoft -p /data/merge.par
-docker run --rm --entrypoint plink   -v /home/genetics/ADMIXTOOLS2:/data eigensoft --23file /data/me/me_sorted.txt ...
+docker run --rm --entrypoint mergeit -v $PROJECT_ROOT:/data eigensoft -p /data/merge.par
+docker run --rm --entrypoint plink   -v $PROJECT_ROOT:/data eigensoft --23file /data/me/me_sorted.txt ...
 ```
 
 ### `admixtools2` — R + admixtools package
 
 ```bash
-docker build -t admixtools2 /home/genetics/ADMIXTOOLS2/docker/r-analysis/
+docker build -t admixtools2 $PROJECT_ROOT/docker/r-analysis/
 
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/qpadm.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/qpadm.R
 ```
 
 ### `dates` — DATES v753 (Moorjani lab, LD dating)
 
 ```bash
-docker build -t dates /home/genetics/ADMIXTOOLS2/docker/dates/
+docker build -t dates $PROJECT_ROOT/docker/dates/
 
 # Step 1: run DATES (writes output to rolloff/output/)
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data dates -p /data/rolloff/dates.par
+docker run --rm -v $PROJECT_ROOT:/data dates -p /data/rolloff/dates.par
 
 # Step 2: fit exponential and plot (uses admixtools2 image)
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/rolloff_plot.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/rolloff_plot.R
 ```
 
 Parameter file: `rolloff/dates.par`. Admixlist (source1, source2, target, outdir): `rolloff/admixlist.txt`.
@@ -99,7 +101,7 @@ The jackknife SE in qpAdm has a hard floor of ~±10% when the target is N=1, reg
 Run once to extract text EIGENSTRAT subset (me + 3 source populations, 117 individuals):
 
 ```bash
-docker run --rm --entrypoint convertf -v /home/genetics/ADMIXTOOLS2:/data eigensoft \
+docker run --rm --entrypoint convertf -v $PROJECT_ROOT:/data eigensoft \
   -p /data/me/subset_extract.par
 # Output: me/subset.geno / .snp / .ind  (~84 MB text)
 ```
@@ -107,7 +109,7 @@ docker run --rm --entrypoint convertf -v /home/genetics/ADMIXTOOLS2:/data eigens
 Then run the analysis:
 
 ```bash
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/chr_painting.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/chr_painting.R
 ```
 
 Output: `me/chr_painting.pdf` and `me/chr_painting.csv`. EIGENSTRAT format is SNP-major (rows = SNPs, cols = individuals). Steppe proportions vary 32–47% across chromosomes; Balkan HG 4–10%; Anatolian 44–63%.
@@ -117,7 +119,7 @@ Output: `me/chr_painting.pdf` and `me/chr_painting.csv`. EIGENSTRAT format is SN
 Requires `me/chr_painting.csv` (run `chr_painting.R` first). Output: `me/ancestry_report.pdf`.
 
 ```bash
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/report.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/report.R
 ```
 
 ## Data

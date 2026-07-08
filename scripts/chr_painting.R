@@ -3,7 +3,7 @@ source("/data/scripts/config.R")
 
 # Chromosome ancestry painting via allele-frequency maximum likelihood.
 # Requires the text EIGENSTRAT subset produced by the prep step:
-#   docker run --rm -v /home/genetics/ADMIXTOOLS2:/data eigensoft \
+#   docker run --rm -v $PROJECT_ROOT:/data eigensoft \
 #     -p /data/me/subset_extract.par
 
 SUBSET_GENO <- file.path(dirname(MERGED_PREFIX), "subset.geno")
@@ -12,7 +12,7 @@ SUBSET_IND  <- file.path(dirname(MERGED_PREFIX), "subset.ind")
 
 if (!file.exists(SUBSET_GENO))
   stop("subset.geno not found. Run convertf first:\n",
-       "  docker run --rm -v /home/genetics/ADMIXTOOLS2:/data eigensoft ",
+       "  docker run --rm -v $PROJECT_ROOT:/data eigensoft ",
        "-p /data/me/subset_extract.par")
 
 model   <- MODELS[[BACKGROUND]]

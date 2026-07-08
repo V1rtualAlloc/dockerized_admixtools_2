@@ -2,6 +2,25 @@
 
 Comparing 23andMe personal genotype data against the Allen Ancient DNA Resource (AADR) using ADMIXTOOLS2.
 
+## Setup
+
+Every command below mounts the repo root into a container at `/data`. Set `PROJECT_ROOT` once per shell to the absolute path where you cloned this repo.
+
+Copy the example env file and edit it with your own path:
+
+```bash
+cp .env.example .env
+# edit .env — set PROJECT_ROOT to the absolute path of this repo
+```
+
+Then, in each new shell before running the commands below:
+
+```bash
+set -a && source .env && set +a
+```
+
+Always use an absolute path — tilde expansion is unreliable with Docker's `-v` flag.
+
 ## Data
 
 ### AADR v66.p1 (1240k SNP panel)
@@ -21,7 +40,7 @@ Files in `aadr/`:
 Compiles AdmixTools from source (convertf, mergeit, qpAdm, etc.) and installs plink 1.9. Used for all data preparation steps.
 
 ```bash
-docker build -t eigensoft /home/genetics/ADMIXTOOLS2/docker/admixtools/
+docker build -t eigensoft $PROJECT_ROOT/docker/admixtools/
 ```
 
 ### `docker/r-analysis/` — R + ADMIXTOOLS2
@@ -29,19 +48,19 @@ docker build -t eigensoft /home/genetics/ADMIXTOOLS2/docker/admixtools/
 Runs ancestry analyses using the `admixtools` R package (v2.0.10).
 
 ```bash
-docker build -t admixtools2 /home/genetics/ADMIXTOOLS2/docker/r-analysis/
+docker build -t admixtools2 $PROJECT_ROOT/docker/r-analysis/
 ```
 
 ### `docker/dates/` — DATES v753 (Moorjani lab, LD dating)
 
 ```bash
-docker build -t dates /home/genetics/ADMIXTOOLS2/docker/dates/
+docker build -t dates $PROJECT_ROOT/docker/dates/
 
 # Step 1: run DATES
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data dates -p /data/rolloff/dates.par
+docker run --rm -v $PROJECT_ROOT:/data dates -p /data/rolloff/dates.par
 
 # Step 2: fit exponential and plot
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/rolloff_plot.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/rolloff_plot.R
 ```
 
 Parameter file: `rolloff/dates.par`. Admixlist file: `rolloff/admixlist.txt` (format: `source1\tsource2\ttarget\toutdir` on one line). Output in `rolloff/output/`.
@@ -73,7 +92,7 @@ Run any script with:
 
 ```bash
 docker run --rm \
-  -v /home/genetics/ADMIXTOOLS2:/data \
+  -v $PROJECT_ROOT:/data \
   admixtools2 /data/scripts/<script>.R
 ```
 
@@ -87,7 +106,7 @@ Run once to extract a text EIGENSTRAT subset (me + 3 source populations, 117 ind
 
 ```bash
 docker run --rm --entrypoint convertf \
-  -v /home/genetics/ADMIXTOOLS2:/data \
+  -v $PROJECT_ROOT:/data \
   eigensoft -p /data/me/subset_extract.par
 ```
 
@@ -98,7 +117,7 @@ Then run the analysis normally with `admixtools2 /data/scripts/chr_painting.R`.
 Generates `me/ancestry_report.pdf` (5 pages). Requires `me/chr_painting.csv` — run `chr_painting.R` first if it doesn't exist.
 
 ```bash
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/report.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/report.R
 ```
 
 ---
@@ -114,7 +133,7 @@ Replace `NAME` with the sample label (no spaces) and `input.txt` with the path t
 **Sort (run in terminal — standard Unix tools, no Docker needed):**
 
 ```bash
-mkdir -p /home/genetics/ADMIXTOOLS2/samples/NAME
+mkdir -p $PROJECT_ROOT/samples/NAME
 
 grep '^#' input.txt > samples/NAME/sorted.txt
 
@@ -133,7 +152,7 @@ grep -v '^#' input.txt | awk 'BEGIN{OFS="\t"} {
 
 ```bash
 docker run --rm --entrypoint plink \
-  -v /home/genetics/ADMIXTOOLS2:/data \
+  -v $PROJECT_ROOT:/data \
   eigensoft \
   --23file /data/samples/NAME/sorted.txt NAME NAME \
   --make-bed --out /data/samples/NAME/NAME
@@ -155,7 +174,7 @@ awk 'seen[$2]++ {print $2}' samples/NAME/NAME.bim > samples/NAME/NAME_duprsids.t
 
 ```bash
 docker run --rm --entrypoint plink \
-  -v /home/genetics/ADMIXTOOLS2:/data \
+  -v $PROJECT_ROOT:/data \
   eigensoft \
   --bfile /data/samples/NAME/NAME \
   --exclude /data/samples/NAME/NAME_duprsids.txt \
@@ -181,7 +200,7 @@ Then run:
 
 ```bash
 docker run --rm --entrypoint convertf \
-  -v /home/genetics/ADMIXTOOLS2:/data \
+  -v $PROJECT_ROOT:/data \
   eigensoft -p /data/samples/NAME/plink2eigenstrat.par
 ```
 
@@ -217,7 +236,7 @@ Then run:
 
 ```bash
 docker run --rm --entrypoint mergeit \
-  -v /home/genetics/ADMIXTOOLS2:/data \
+  -v $PROJECT_ROOT:/data \
   eigensoft -p /data/samples/NAME/merge.par
 ```
 
@@ -238,10 +257,10 @@ F2_DIR        <- "/data/samples/NAME/f2/"
 Then run whichever analyses you want:
 
 ```bash
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/qpadm.R
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/f3_outgroup.R
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/f4.R
-docker run --rm -v /home/genetics/ADMIXTOOLS2:/data admixtools2 /data/scripts/qpgraph.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/qpadm.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/f3_outgroup.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/f4.R
+docker run --rm -v $PROJECT_ROOT:/data admixtools2 /data/scripts/qpgraph.R
 ```
 
 **Outgroup selection note (european background):** outgroups must distinguish the three sources from each other. Include Near Eastern populations (Iran_N, Natufian) for resolution; exclude EHG and CHG which are direct components of Yamnaya. The HG source is `Serbia_IronGates_Mesolithic` (Balkan HG, ~8000 BCE) rather than Loschbour — Iron Gates fits marginally better for a Macedonian/Serbian individual and is geographically more appropriate.
