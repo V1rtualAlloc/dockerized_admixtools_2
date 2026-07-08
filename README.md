@@ -2,6 +2,26 @@
 
 Comparing 23andMe personal genotype data against the Allen Ancient DNA Resource (AADR) using ADMIXTOOLS2.
 
+## Prerequisites
+
+All analysis runs inside Docker containers, so the only host requirement is Docker itself plus a couple of standard CLI tools.
+
+### Linux
+
+- **Docker Engine** — [official install guide](https://docs.docker.com/engine/install/). On Ubuntu/Debian:
+  ```bash
+  curl -fsSL https://get.docker.com | sh
+  sudo usermod -aG docker "$USER"   # log out/in afterwards so docker works without sudo
+  ```
+- **curl, awk, sed, grep** — preinstalled on virtually every distro. If missing: `sudo apt install curl gawk sed grep`.
+- **bash 4+** (for `scripts/download_aadr.sh`, which uses associative arrays) — preinstalled on all modern distros.
+
+### Windows
+
+- **Docker Desktop** — [official install guide](https://docs.docker.com/desktop/install/windows-install/). Requires WSL2, which Docker Desktop's installer offers to enable for you; if not, enable it first with `wsl --install` in an elevated PowerShell.
+- **PowerShell 5.1+** — ships with Windows 10/11 by default, used for `scripts/download_aadr.ps1`.
+- The `mkdir -p`, `grep`, `awk`, `sed` steps under [How to add a new 23andMe sample](#how-to-add-a-new-23andme-sample) are written for a POSIX shell. Run them in **WSL** (`wsl --install`, then use its Ubuntu shell) or **Git Bash** (bundled with [Git for Windows](https://git-scm.com/download/win)). Everything else (`docker build`, `docker run`, the PowerShell download script) works natively in PowerShell.
+
 ## Setup
 
 Every command below mounts the repo root into a container at `/data`. Set `PROJECT_ROOT` once per shell to the absolute path where you cloned this repo.
@@ -32,6 +52,18 @@ Files in `aadr/`:
 - `v66.p1_1240K.aadr.patch.PUB.ind` — 23,089 individuals
 - `v66.p1_1240K.aadr.PUB.anno` — sample metadata/annotations
 - `v66.p1_1240K.geno/.snp/.ind` — converted PACKEDANCESTRYMAP format (used for analysis)
+
+Download the four raw files above with the provided script (requires `PROJECT_ROOT` set, see [Setup](#setup)):
+
+```bash
+# Linux/macOS
+./scripts/download_aadr.sh
+
+# Windows
+.\scripts\download_aadr.ps1
+```
+
+The PACKEDANCESTRYMAP conversion (`v66.p1_1240K.geno/.snp/.ind`) is not downloaded — produce it yourself with `convertf` (see `docker/admixtools/`).
 
 ## Docker images
 
