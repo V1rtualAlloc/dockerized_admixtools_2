@@ -8,20 +8,18 @@ source("/data/scripts/config.R")
 
 OUTGROUP <- "Mbuti"
 
-# Populations to test against — broad set covering ancient and modern diversity
-TEST_POPS <- c(
+# Populations to test against — broad set covering ancient and modern diversity.
+# Draws on the background's own source/outgroup/pool populations (already
+# verified for BACKGROUND) plus REFERENCES (region-specific, see config.R)
+# and WORLD_REFS (background-agnostic modern diversity panel).
+model <- MODELS[[BACKGROUND]]
+TEST_POPS <- unique(c(
   REFERENCES,
-  "Russia_Samara_EBA_Yamnaya",
-  "Luxembourg_Loschbour_Mesolithic",
-  "Turkey_N",
-  "Russia_Karelia_Mesolithic_HG",
-  "Georgia_KotiasKlde_Mesolithic",
-  "Iran_GanjDareh_N",
-  "Israel_Natufian",
-  "China_TianyuanCave_UP",
-  "Ethiopia_MotaCave_4500BP",
-  "French", "Sardinian", "Spanish", "Russian", "Han", "Papuan", "Yoruba"
-)
+  if (!is.null(model$pool)) model$pool else model$sources,
+  model$outgroup,
+  WORLD_REFS
+))
+TEST_POPS <- setdiff(TEST_POPS, c(TARGET, OUTGROUP))
 
 all_pops <- c(TARGET, OUTGROUP, TEST_POPS)
 

@@ -67,26 +67,26 @@ run_qpadm <- function(target) {
   pv <- if (length(pv) > 0) pv[1] else NA
   tibble(
     population = target,
-    steppe     = w[sources[1]],
-    whg        = w[sources[2]],
-    anatolian  = w[sources[3]],
+    !!sources[1] := w[sources[1]],
+    !!sources[2] := w[sources[2]],
+    !!sources[3] := w[sources[3]],
     p          = pv,
     fit        = ifelse(!is.na(pv) & pv > 0.05, "PASS", "fail")
   )
 }
 
 comparison <- bind_rows(run_qpadm(TARGET), map(REFERENCES, run_qpadm)) %>%
-  arrange(desc(steppe))
+  arrange(desc(.data[[sources[1]]]))
 
-cat(sprintf("  %-38s  %7s  %7s  %10s  %8s  %s\n",
-            "Population", "Steppe", "WHG", "Anatolian", "p-value", "fit"))
-cat(strrep("-", 85), "\n")
+cat(sprintf("  %-38s  %13s  %13s  %13s  %8s  %s\n",
+            "Population", sources[1], sources[2], sources[3], "p-value", "fit"))
+cat(strrep("-", 100), "\n")
 for (i in seq_len(nrow(comparison))) {
   r <- comparison[i, ]
   marker <- if (r$population == TARGET) " <-- you" else ""
-  cat(sprintf("  %-38s  %6.1f%%  %6.1f%%  %9.1f%%  %8s  %s%s\n",
+  cat(sprintf("  %-38s  %12.1f%%  %12.1f%%  %12.1f%%  %8s  %s%s\n",
               r$population,
-              r$steppe * 100, r$whg * 100, r$anatolian * 100,
+              r[[sources[1]]] * 100, r[[sources[2]]] * 100, r[[sources[3]]] * 100,
               ifelse(is.na(r$p), "NA", sprintf("%.4f", r$p)),
               r$fit, marker))
 }

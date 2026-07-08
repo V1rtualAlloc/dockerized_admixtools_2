@@ -123,18 +123,20 @@ All analysis scripts live in `scripts/`. Edit `scripts/config.R` to set the targ
 
 ### Generic — work for any target
 
-Driven entirely by `config.R` (`TARGET`, `BACKGROUND`, `MODELS`). Point `config.R` at your own merged dataset and these run as-is, for any ancestry background.
+Driven entirely by `config.R` (`TARGET`, `BACKGROUND`, `MODELS`). Point `config.R` at your own merged dataset and these run as-is, for any ancestry background — the qpAdm sources/outgroups and every population pool the scripts pull from (`MODELS[[BACKGROUND]]$pool`, `WORLD_REFS`) are keyed by `BACKGROUND` or background-agnostic.
+
+**Exception:** `REFERENCES` (in `config.R`) is the one thing that can't be generic — it's the set of modern/historical populations shown alongside the target for comparison, and "relevant comparison population" is inherently regional. Only `REFERENCES_BY_BACKGROUND$european` is populated (this project's original Balkan/Slavic use case). If you set `BACKGROUND` to anything else, `REFERENCES` is empty by default — `qpadm.R`'s comparison table, `pca.R`'s "Reference" group, and the `f3`/`f4` scripts' comparison rows will just show the target with no peers until you add your own region's populations to `REFERENCES_BY_BACKGROUND` (verify names against the AADR `.ind` file first — see the f2 cache gotcha below for why small/high-missingness populations are risky to add).
 
 | Script | What it does |
 |--------|-------------|
-| `config.R` | Shared config: TARGET, BACKGROUND, MERGED_PREFIX, F2_DIR, MODELS, REFERENCES |
+| `config.R` | Shared config: TARGET, BACKGROUND, MERGED_PREFIX, F2_DIR, MODELS, REFERENCES_BY_BACKGROUND, WORLD_REFS |
 | `qpadm.R` | 3-source admixture model + comparison table across reference populations |
-| `qpadm_rotate.R` | Tests all 2- and 3-source combinations from ancient pool; reports passing models |
+| `qpadm_rotate.R` | Tests all 2- and 3-source combinations from `MODELS[[BACKGROUND]]$pool` (falls back to the 3 default sources if no pool is defined); reports passing models |
 | `f3_outgroup.R` | Ranks all populations by genetic affinity to the target (outgroup f3) |
 | `f3_admixture.R` | Tests all source pairs for admixture signal (negative f3) |
-| `f4.R` | D-statistics: tests excess Steppe / WHG affinity vs reference populations |
+| `f4.R` | D-statistics: balance test for every pair of the background's qpAdm sources vs reference populations |
 | `qpgraph.R` | Fits an admixture graph (automated search, numadmix=2) |
-| `pca.R` | MDS from pairwise f2 distances; 28-pop and 42-pop (Balkan focus) versions |
+| `pca.R` | MDS from pairwise f2 distances; "all populations" and "regional focus" versions. Extra Balkan/medieval populations for finer resolution are only added when `BACKGROUND == "european"` (`REGIONAL_EXTRA` in the script) |
 | `rolloff_plot.R` | Fits exponential to DATES output; reports date estimate with jackknife SE |
 | `chr_painting.R` | Per-chromosome ancestry via allele-frequency MLE (see prep step below) |
 
@@ -168,15 +170,41 @@ f2 blocks are cached in `F2_DIR` after the first run. If you change the populati
 
 ### Chromosome painting prep step
 
-Run once to extract a text EIGENSTRAT subset (me + 3 source populations, 117 individuals):
+`chr_painting.R` needs a text EIGENSTRAT subset containing just the target and its 3 qpAdm sources (`MODELS[[BACKGROUND]]$sources`) — this isn't produced by any earlier step, so create it once per target/background.
+
+For the author's own sample (`TARGET="me"`, `BACKGROUND="european"`) this is already checked out at `me/subset_extract.par` / `me/subset_poplist.txt`. For a new target — say `TARGET="NAME"` with `MERGED_PREFIX="/data/samples/NAME/merged"` as set up in [How to add a new 23andMe sample](#how-to-add-a-new-23andme-sample) — create both files yourself.
+
+`samples/NAME/subset_poplist.txt` — one population per line: the target, then its 3 sources from `MODELS[[BACKGROUND]]$sources` in `config.R` (e.g. for `european`: `Russia_Samara_EBA_Yamnaya`, `Serbia_IronGates_Mesolithic`, `Turkey_N`):
+
+```
+NAME
+Russia_Samara_EBA_Yamnaya
+Serbia_IronGates_Mesolithic
+Turkey_N
+```
+
+`samples/NAME/subset_extract.par`:
+
+```
+genotypename:    /data/samples/NAME/merged.geno
+snpname:         /data/samples/NAME/merged.snp
+indivname:       /data/samples/NAME/merged.ind
+outputformat:    EIGENSTRAT
+genooutfilename: /data/samples/NAME/subset.geno
+snpoutfilename:  /data/samples/NAME/subset.snp
+indoutfilename:  /data/samples/NAME/subset.ind
+poplistname:     /data/samples/NAME/subset_poplist.txt
+```
+
+Then run:
 
 ```bash
 docker run --rm --entrypoint convertf \
   -v $PROJECT_ROOT:/data \
-  eigensoft -p /data/me/subset_extract.par
+  eigensoft -p /data/samples/NAME/subset_extract.par
 ```
 
-Then run the analysis normally with `admixtools2 /data/scripts/chr_painting.R`.
+Then run the analysis normally with `admixtools2 /data/scripts/chr_painting.R` — it reads the subset from `dirname(MERGED_PREFIX)`, so as long as `MERGED_PREFIX` in `config.R` points at `samples/NAME/merged`, it finds the files created above automatically.
 
 ### Report
 

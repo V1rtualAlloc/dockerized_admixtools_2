@@ -8,37 +8,39 @@ source("/data/scripts/config.R")
 F2_MDS_DIR <- file.path(dirname(F2_DIR), "f2_mds")
 dir.create(F2_MDS_DIR, showWarnings = FALSE, recursive = TRUE)
 
+model <- MODELS[[BACKGROUND]]
+
+# Extra ancient/medieval populations for finer regional resolution. Only
+# defined for "european" (this project's original Balkan/Slavic use case) —
+# add an entry here for other backgrounds if you want the same fine-grained
+# view; otherwise MDS_POPS below falls back to the background's own
+# sources/outgroup/pool, which is still a valid (just coarser) MDS.
+REGIONAL_EXTRA <- list(
+  european = c(
+    "Serbia_IronGates_Mesolithic",      # Balkan Mesolithic HG
+    "Serbia_EN_Starcevo",               # first Balkan farmers
+    "Serbia_EBA_Maros",                 # Balkan Bronze Age
+    "Serbia_ImperialRoman",             # Roman-era Serbia
+    "Bulgaria_Varna_C",                 # Chalcolithic Balkans
+    "NorthMacedonia_IA",                # Iron Age Macedonia
+    "Croatia_MLBA",                     # Bronze Age Croatia
+    "Croatia_EarlyMedieval_EarlySlav",  # Slavic migration era
+    "Ukraine_N",                        # Neolithic farmers
+    "Czechia_EBA_CordedWare",           # Corded Ware
+    "Czechia_BellBeaker",               # Bell Beaker
+    "Czechia_EBA_Unetice",              # Unetice Bronze Age
+    "Poland_EarlyMedieval_Slav",        # early medieval Slavs
+    "Sweden_Viking"                     # Vikings
+  )
+)[[BACKGROUND]]
+
 MDS_POPS <- unique(c(
   TARGET,
-  # Existing ancient sources
-  "Russia_Samara_EBA_Yamnaya",
-  "Luxembourg_Loschbour_Mesolithic",
-  "Turkey_N",
-  "Russia_Karelia_Mesolithic_HG",
-  "Georgia_KotiasKlde_Mesolithic",
-  "Iran_GanjDareh_N",
-  "Israel_Natufian",
-  # Balkan prehistory (most relevant for target)
-  "Serbia_IronGates_Mesolithic",  # Balkan Mesolithic HG
-  "Serbia_EN_Starcevo",           # first Balkan farmers
-  "Serbia_EBA_Maros",             # Balkan Bronze Age
-  "Serbia_ImperialRoman",         # Roman-era Serbia
-  "Bulgaria_Varna_C",             # Chalcolithic Balkans
-  "NorthMacedonia_IA",            # Iron Age Macedonia
-  "Croatia_MLBA",                 # Bronze Age Croatia
-  "Croatia_EarlyMedieval_EarlySlav",  # Slavic migration era
-  # Pan-European prehistoric reference
-  "Ukraine_N",                    # Neolithic farmers
-  "Czechia_EBA_CordedWare",       # Corded Ware
-  "Czechia_BellBeaker",           # Bell Beaker
-  "Czechia_EBA_Unetice",          # Unetice Bronze Age
-  "Poland_EarlyMedieval_Slav",    # early medieval Slavs
-  "Sweden_Viking",                # Vikings
-  # Modern and medieval reference populations
+  if (!is.null(model$pool)) model$pool else model$sources,
+  model$outgroup,
+  REGIONAL_EXTRA,
   REFERENCES,
-  "French", "Sardinian", "Spanish", "Russian",
-  # Outgroups
-  "Mbuti", "Yoruba", "Han", "Papuan",
+  WORLD_REFS,
   "China_TianyuanCave_UP", "Ethiopia_MotaCave_4500BP"
 ))
 
@@ -63,19 +65,13 @@ dmat[dmat < 0] <- 0
 
 pops_all <- rownames(dmat)
 
-ancient <- c(
-  "Russia_Samara_EBA_Yamnaya", "Luxembourg_Loschbour_Mesolithic",
-  "Turkey_N", "Russia_Karelia_Mesolithic_HG", "Georgia_KotiasKlde_Mesolithic",
-  "Iran_GanjDareh_N", "Israel_Natufian", "China_TianyuanCave_UP",
-  "Ethiopia_MotaCave_4500BP",
-  "Serbia_IronGates_Mesolithic", "Serbia_EN_Starcevo", "Serbia_EBA_Maros",
-  "Serbia_ImperialRoman", "Bulgaria_Varna_C", "NorthMacedonia_IA",
-  "Croatia_MLBA", "Croatia_EarlyMedieval_EarlySlav",
-  "Ukraine_N", "Czechia_EBA_CordedWare", "Czechia_BellBeaker",
-  "Czechia_EBA_Unetice", "Poland_EarlyMedieval_Slav", "Sweden_Viking"
-)
-outgroups <- c("Mbuti", "Yoruba", "Papuan", "Han",
-               "China_TianyuanCave_UP", "Ethiopia_MotaCave_4500BP")
+ancient <- unique(c(
+  if (!is.null(model$pool)) model$pool else model$sources,
+  REGIONAL_EXTRA,
+  "China_TianyuanCave_UP", "Ethiopia_MotaCave_4500BP"
+))
+outgroups <- unique(c(model$outgroup, "Mbuti", "Yoruba", "Papuan", "Han",
+                      "China_TianyuanCave_UP", "Ethiopia_MotaCave_4500BP"))
 
 make_mds_df <- function(dm) {
   mds  <- cmdscale(dm, k = 2, eig = TRUE)
@@ -86,10 +82,10 @@ make_mds_df <- function(dm) {
     rownames_to_column("pop") %>%
     mutate(group = case_when(
       pop == TARGET                        ~ "You",
-      pop %in% REFERENCES                  ~ "Balkan ref",
+      pop %in% REFERENCES                  ~ "Reference",
       pop %in% outgroups                   ~ "Outgroup",
       pop %in% ancient                     ~ "Ancient",
-      TRUE                                 ~ "Modern European"
+      TRUE                                 ~ "Modern/Other"
     ))
   # Remove outliers > 3 SD from center (small-n populations)
   df <- df %>%
@@ -107,15 +103,15 @@ make_plot <- function(df, pct, title) {
     geom_text(aes(label = pop), size = 2.2, hjust = -0.1,
               vjust = 0.5, show.legend = FALSE) +
     scale_color_manual(values = c(
-      "You"             = "red",
-      "Balkan ref"      = "steelblue",
-      "Ancient"         = "darkorange",
-      "Modern European" = "forestgreen",
-      "Outgroup"        = "gray50"
+      "You"          = "red",
+      "Reference"    = "steelblue",
+      "Ancient"      = "darkorange",
+      "Modern/Other" = "forestgreen",
+      "Outgroup"     = "gray50"
     )) +
     scale_shape_manual(values = c(
-      "You" = 18, "Balkan ref" = 16, "Ancient" = 17,
-      "Modern European" = 15, "Outgroup" = 4
+      "You" = 18, "Reference" = 16, "Ancient" = 17,
+      "Modern/Other" = 15, "Outgroup" = 4
     )) +
     labs(
       title = title,
@@ -133,14 +129,14 @@ p1 <- make_plot(r1$df, r1$pct,
                 sprintf("MDS — all populations (%d pops, f2 distances) — target: %s",
                         length(MDS_POPS), TARGET))
 
-# Plot 2: European focus (drop distant outgroups)
-euro_pops <- pops_all[!pops_all %in% c("Mbuti", "Yoruba", "Papuan",
-                                        "Han", "China_TianyuanCave_UP",
-                                        "Ethiopia_MotaCave_4500BP")]
-r2 <- make_mds_df(dmat[euro_pops, euro_pops])
+# Plot 2: regional focus (drop distant global outgroups to zoom in)
+close_pops <- pops_all[!pops_all %in% c("Mbuti", "Yoruba", "Papuan",
+                                         "Han", "China_TianyuanCave_UP",
+                                         "Ethiopia_MotaCave_4500BP")]
+r2 <- make_mds_df(dmat[close_pops, close_pops])
 p2 <- make_plot(r2$df, r2$pct,
-                sprintf("MDS — European focus (%d pops) — target: %s",
-                        length(euro_pops), TARGET))
+                sprintf("MDS — regional focus (%d pops) — target: %s",
+                        length(close_pops), TARGET))
 
 outdir <- dirname(F2_DIR)
 ggsave(file.path(outdir, "mds_all.pdf"),  p1, width = 16, height = 11)
@@ -148,5 +144,5 @@ ggsave(file.path(outdir, "mds_euro.pdf"), p2, width = 16, height = 11)
 
 cat("Plots saved:\n")
 cat(" ", file.path(outdir, "mds_all.pdf"),  "— all populations\n")
-cat(" ", file.path(outdir, "mds_euro.pdf"), "— European focus\n")
+cat(" ", file.path(outdir, "mds_euro.pdf"), "— regional focus\n")
 cat("\nDone.\n")

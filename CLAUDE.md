@@ -61,16 +61,18 @@ All scripts in `scripts/` source `scripts/config.R` for shared configuration. Ed
 
 **Generic vs. case study:** `qpadm.R`, `qpadm_rotate.R`, `f3_outgroup.R`, `f3_admixture.R`, `f4.R`, `qpgraph.R`, `pca.R`, `rolloff_plot.R`, and `chr_painting.R` are driven entirely by `config.R` and work for any `TARGET`/`BACKGROUND`. Everything below the `chr_painting.R` row hardcodes specific historical population names (and, for `report.R`, prose about one specific genome) — they're a worked example of the author's own Balkan/Slavic ancestry investigation, not templates for a different target.
 
+**REFERENCES caveat:** `REFERENCES` (comparison populations shown alongside TARGET) is inherently regional, so it's keyed by BACKGROUND as `REFERENCES_BY_BACKGROUND` in config.R. Only `european` is populated — any other BACKGROUND gets an empty comparison set until you add real, AADR-verified populations for that region. Everything else these scripts pull from `MODELS[[BACKGROUND]]` (`sources`, `outgroup`, `pool`) or `WORLD_REFS` is already background-keyed or background-agnostic.
+
 | Script | Purpose |
 |--------|---------|
-| `config.R` | TARGET, BACKGROUND, MERGED_PREFIX, F2_DIR, MODELS, REFERENCES |
-| `qpadm.R` | 3-source admixture model + comparison table |
-| `qpadm_rotate.R` | Systematic 2- and 3-source model search over ancient source pool |
+| `config.R` | TARGET, BACKGROUND, MERGED_PREFIX, F2_DIR, MODELS, REFERENCES_BY_BACKGROUND, WORLD_REFS |
+| `qpadm.R` | 3-source admixture model + comparison table (columns labeled by the background's actual source names) |
+| `qpadm_rotate.R` | Systematic 2- and 3-source model search over `MODELS[[BACKGROUND]]$pool` (falls back to `sources` if no pool defined) |
 | `f3_outgroup.R` | Outgroup f3 ranking by affinity to target |
 | `f3_admixture.R` | Admixture f3: all source pairs tested for negative f3 (admixture signal) |
-| `f4.R` | D-statistics: Steppe and WHG affinity tests |
+| `f4.R` | D-statistics: balance test for every pair of the background's 3 qpAdm sources |
 | `qpgraph.R` | Admixture graph fitting |
-| `pca.R` | MDS from pairwise f2 distances (42-population richer set, separate f2 cache) |
+| `pca.R` | MDS from pairwise f2 distances (separate f2 cache); Balkan-specific extra populations only added when `BACKGROUND == "european"` |
 | `rolloff_plot.R` | Fits exponential to DATES output; reports date estimate with jackknife SE |
 | `chr_painting.R` | Per-chromosome ancestry proportions via allele-frequency MLE (requires prep step below) |
 | `chg_test.R` | *(case study)* 3-model comparison to test for direct CHG ancestry beyond Yamnaya |
@@ -101,7 +103,7 @@ The jackknife SE in qpAdm has a hard floor of ~±10% when the target is N=1, reg
 
 ### Chromosome painting prep step
 
-Run once to extract text EIGENSTRAT subset (me + 3 source populations, 117 individuals):
+`chr_painting.R` needs a text EIGENSTRAT subset (target + its 3 `MODELS[[BACKGROUND]]$sources`) that no earlier step produces. For `TARGET="me"` it's already checked out as `me/subset_extract.par` / `me/subset_poplist.txt`. For any other target, create the equivalent `<dir>/subset_extract.par` (genotypename/snpname/indivname pointing at `MERGED_PREFIX`, outputformat EIGENSTRAT, poplistname pointing at a poplist file) and `<dir>/subset_poplist.txt` (target + its 3 sources, one per line) yourself — see README.md's "Chromosome painting prep step" for the full template.
 
 ```bash
 docker run --rm --entrypoint convertf -v $PROJECT_ROOT:/data eigensoft \

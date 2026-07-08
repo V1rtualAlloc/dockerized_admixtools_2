@@ -5,18 +5,14 @@ source("/data/scripts/config.R")
 # qpAdm rotating: systematically test all 2-source and 3-source combinations
 # from a pool of ancient populations. Reports which models pass (p > 0.05)
 # with feasible weights (all between 0 and 1).
+#
+# SOURCE_POOL comes from MODELS[[BACKGROUND]]$pool when defined (richer
+# candidate list — see config.R); otherwise falls back to just the
+# background's 3 default sources, which still runs but tests fewer combos.
 
-SOURCE_POOL <- c(
-  "Russia_Samara_EBA_Yamnaya",       # Steppe
-  "Serbia_IronGates_Mesolithic",      # Balkan HG (replaces WHG/Loschbour)
-  "Luxembourg_Loschbour_Mesolithic",  # WHG (kept for comparison)
-  "Turkey_N",                         # EEF
-  "Russia_Karelia_Mesolithic_HG",     # EHG
-  "Georgia_KotiasKlde_Mesolithic"     # CHG
-  # Iran_GanjDareh_N and Israel_Natufian excluded: they are in the outgroup set
-)
-
-OUTGROUPS <- MODELS[[BACKGROUND]]$outgroup
+model <- MODELS[[BACKGROUND]]
+SOURCE_POOL <- if (!is.null(model$pool)) model$pool else model$sources
+OUTGROUPS <- model$outgroup
 all_pops  <- unique(c(TARGET, SOURCE_POOL, OUTGROUPS))
 
 cat("=== qpAdm rotating ===\n")

@@ -8,15 +8,14 @@ source("/data/scripts/config.R")
 # negative on average. z < -3 = significant admixture signal.
 # Tests all pairs from a pool of ancient and modern source populations.
 
+# Pool of candidate source populations: the background's own ancient
+# pool/sources and outgroup (already verified for BACKGROUND, see config.R),
+# plus REFERENCES (region-specific) and WORLD_REFS (modern diversity panel).
+model <- MODELS[[BACKGROUND]]
 SOURCES <- unique(c(
-  "Russia_Samara_EBA_Yamnaya",
-  "Luxembourg_Loschbour_Mesolithic",
-  "Turkey_N",
-  "Russia_Karelia_Mesolithic_HG",
-  "Georgia_KotiasKlde_Mesolithic",
-  "Iran_GanjDareh_N",
-  "Israel_Natufian",
-  "French", "Sardinian", "Spanish", "Russian",
+  if (!is.null(model$pool)) model$pool else model$sources,
+  model$outgroup,
+  WORLD_REFS,
   REFERENCES
 ))
 SOURCES <- SOURCES[SOURCES != TARGET]

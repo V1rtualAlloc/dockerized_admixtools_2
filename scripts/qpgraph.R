@@ -2,17 +2,14 @@ library(admixtools)
 library(tidyverse)
 source("/data/scripts/config.R")
 
-GRAPH_POPS <- c(
+model <- MODELS[[BACKGROUND]]
+GRAPH_POPS <- unique(c(
   TARGET,
-  "Russia_Samara_EBA_Yamnaya",
-  "Luxembourg_Loschbour_Mesolithic",
-  "Turkey_N",
-  "Russia_Karelia_Mesolithic_HG",
-  "Georgia_KotiasKlde_Mesolithic",
+  if (!is.null(model$pool)) model$pool else model$sources,
   "Mbuti"
-)
+))
 
-all_pops <- unique(c(GRAPH_POPS, MODELS[[BACKGROUND]]$outgroup))
+all_pops <- unique(c(GRAPH_POPS, model$outgroup))
 
 cat("=== qpGraph admixture graph ===\n")
 cat("Target:", TARGET, "\n")

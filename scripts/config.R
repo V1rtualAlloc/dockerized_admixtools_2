@@ -11,7 +11,13 @@ MERGED_PREFIX <- "/data/me/merged"   # path to merged.geno/.snp/.ind (no extensi
 F2_DIR        <- "/data/me/f2/"      # where to cache f2 blocks (created if needed)
 
 
-# Reference populations included in every analysis for comparison
+# Broad modern/high-diversity populations used as extra context in the
+# exploratory scripts (f3_outgroup.R, f3_admixture.R, pca.R), regardless of
+# BACKGROUND — these aren't claimed to be closely related to any particular
+# target, just useful fixed points for orientation.
+WORLD_REFS <- c("Mbuti", "Yoruba", "Han", "Papuan",
+                "French", "Sardinian", "Spanish", "Russian")
+
 # Shared outgroups for all Slavic model scripts
 SLAVIC_OUTGROUPS <- c(
   "Mbuti", "Yoruba", "Han", "Papuan",
@@ -19,22 +25,41 @@ SLAVIC_OUTGROUPS <- c(
   "Iran_GanjDareh_N", "Israel_Natufian", "Turkey_N"
 )
 
-REFERENCES <- c(
-  "Serbia_Medieval",
-  "Serbia_EarlyMedieval_Byzantine_Slav",
-  "BosniaHerzegovina_Medieval",
-  "Croatia_Medieval_Modern",
-  "NorthMacedonia_Medieval",
-  "Bulgarian",
-  "Albanian",
-  "Hungarian",
-  "Romania_Medieval",
-  "Greek",
-  "Russian"
+# Modern/historical populations shown alongside TARGET for comparison in
+# qpadm.R, f3_outgroup.R, f3_admixture.R, f4.R and pca.R — populations from
+# the same region as the target, so its results can be read in context.
+# Keyed by BACKGROUND because "relevant comparison population" is inherently
+# regional. Only "european" is populated (this project's original Balkan/
+# Slavic use case). If you're running a different BACKGROUND, add your own
+# region's comparison populations here — verify names against the AADR
+# .ind file first (see CLAUDE.md's f2 cache pollution warning for N<10 pops).
+REFERENCES_BY_BACKGROUND <- list(
+  european        = c(
+    "Serbia_Medieval",
+    "Serbia_EarlyMedieval_Byzantine_Slav",
+    "BosniaHerzegovina_Medieval",
+    "Croatia_Medieval_Modern",
+    "NorthMacedonia_Medieval",
+    "Bulgarian",
+    "Albanian",
+    "Hungarian",
+    "Romania_Medieval",
+    "Greek",
+    "Russian"
+  ),
+  south_asian     = character(0),
+  east_asian      = character(0),
+  middle_eastern  = character(0),
+  central_asian   = character(0),
+  native_american = character(0)
 )
+REFERENCES <- REFERENCES_BY_BACKGROUND[[BACKGROUND]]
 
 
 # Ancestry models: sources (qpAdm left) and outgroups (right) per background.
+# `pool` is an optional wider set of ancient-population candidates used by the
+# exploratory scripts (qpadm_rotate.R, f3_admixture.R); scripts fall back to
+# `sources` when a background has no dedicated pool.
 # Outgroup rules for european:
 #   - Excluded: EHG and CHG (direct components of Yamnaya)
 #   - Included: Iran_N and Natufian (Near Eastern resolution without being sources)
@@ -48,7 +73,13 @@ MODELS <- list(
                  "Ethiopia_MotaCave_4500BP",
                  "China_TianyuanCave_UP",
                  "Iran_GanjDareh_N",
-                 "Israel_Natufian")
+                 "Israel_Natufian"),
+    pool     = c("Russia_Samara_EBA_Yamnaya",
+                 "Serbia_IronGates_Mesolithic",
+                 "Luxembourg_Loschbour_Mesolithic",
+                 "Turkey_N",
+                 "Russia_Karelia_Mesolithic_HG",
+                 "Georgia_KotiasKlde_Mesolithic")
   ),
 
   south_asian = list(
