@@ -4,17 +4,11 @@ source("/data/scripts/config.R")
 
 OUTGROUPS <- SLAVIC_OUTGROUPS
 
-SLAVIC <- c("Poland_EarlyMedieval_Slav", "Poland_EarlySlav")
+SLAVIC <- SLAVIC_MIGRANT_POOL
 
-BALKAN_IA <- c(
-  "NorthMacedonia_IA",          # N=15, central Balkans
-  "Croatia_EIA",                # N=24, western Balkans
-  "Bulgaria_KapitanAndreevo_EIA", # N=11, eastern Balkans
-  "Serbia_ImperialRoman"        # N=30, Serbian Roman (bundled substrate)
-)
+BALKAN_IA <- SLAVIC_BALKAN_IA_FULL
 
-ROMAN <- c("Turkey_Medieval_Byzantine", "Turkey_LateAntiquity_Byzantine",
-           "Turkey_EarlyMedieval_Byzantine", "Italy_Lazio_ImperialRoman_Roman")
+ROMAN <- SLAVIC_ROMAN_FOCUSED
 
 pops_needed <- unique(c(TARGET, SLAVIC, BALKAN_IA, ROMAN, OUTGROUPS))
 cat("Populations in cache:", length(pops_needed), "\n")

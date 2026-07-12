@@ -14,17 +14,10 @@ source("/data/scripts/config.R")
 
 OUTGROUPS <- SLAVIC_OUTGROUPS
 
-POOL_SOURCES <- c(
-  "Croatia_EIA",
-  "NorthMacedonia_IA",
-  "Bulgaria_KapitanAndreevo_EIA"
-)
+POOL_SOURCES <- SLAVIC_BALKAN_IA_CORE
 POOLED_LABEL <- "Balkans_IA"
 
-ROMAN <- c(
-  "Italy_Lazio_ImperialRoman_Roman",
-  "Turkey_Medieval_Byzantine"
-)
+ROMAN <- SLAVIC_ROMAN_MINIMAL
 
 # ── Step 1: build pooled .ind + symlinks ──────────────────────────────────────
 

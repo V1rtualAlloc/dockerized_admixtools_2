@@ -4,7 +4,7 @@ source("/data/scripts/config.R")
 
 OUTGROUPS <- SLAVIC_OUTGROUPS
 
-SOURCES <- c("Poland_EarlyMedieval_Slav", "Croatia_EIA")
+SOURCES <- SLAVIC_BEST_SOURCES
 
 FOCUSED_F2_DIR <- sub("f2/?$", "f2_focused/", F2_DIR)
 

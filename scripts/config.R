@@ -140,3 +140,63 @@ MODELS <- list(
                  "Iran_GanjDareh_N")
   )
 )
+
+
+# =============================================================================
+# Slavic ancestry model — shared population pools (case-study, european
+# background only; see CLAUDE.md's case-study note). Consumed by
+# scripts/slavic_*.R and report.R. Previously these were duplicated ad hoc
+# across each script (with drift between them) — centralized here so a pool
+# only needs editing in one place. Where scripts intentionally used different
+# scope (e.g. a narrower pool to keep a pooled cache's SEs tight), that's kept
+# as a separate named variant rather than silently unified.
+# =============================================================================
+
+# Slavic migrant proxies (identical across slavic_model.R and slavic_focused.R)
+SLAVIC_MIGRANT_POOL <- c("Poland_EarlyMedieval_Slav", "Poland_EarlySlav")
+
+# Best-supported 2-source model (slavic_pie.R, slavic_outgroup_test.R)
+SLAVIC_BEST_SOURCES <- c("Poland_EarlyMedieval_Slav", "Croatia_EIA")
+
+# Balkan Iron Age substrate candidates
+#   CORE — slavic_model.R (rotating search), slavic_pooled.R (pooling)
+#   FULL — slavic_focused.R; adds Serbia_ImperialRoman as a 4th candidate
+SLAVIC_BALKAN_IA_CORE <- c("Croatia_EIA", "Bulgaria_KapitanAndreevo_EIA", "NorthMacedonia_IA")
+SLAVIC_BALKAN_IA_FULL <- c(SLAVIC_BALKAN_IA_CORE, "Serbia_ImperialRoman")
+
+# Roman/Byzantine import candidates
+#   FULL    — slavic_model.R (rotating search): all era-matched variants
+#   FOCUSED — slavic_focused.R: narrower set
+#   MINIMAL — slavic_pooled.R: narrowest, keeps the pooled cache's SEs tight
+SLAVIC_ROMAN_FULL <- c(
+  "Italy_Lazio_ImperialRoman_Roman",
+  "Italy_Lazio_LateAntiquity_ImperialRoman_Roman",
+  "Italy_Lazio_LateAntiquity_Roman",
+  "Turkey_Medieval_Byzantine",
+  "Turkey_EarlyMedieval_Byzantine",
+  "Turkey_LateAntiquity_Byzantine",
+  "Turkey_LateAntiquity_ImperialRoman"
+)
+SLAVIC_ROMAN_FOCUSED <- c(
+  "Turkey_Medieval_Byzantine", "Turkey_LateAntiquity_Byzantine",
+  "Turkey_EarlyMedieval_Byzantine", "Italy_Lazio_ImperialRoman_Roman"
+)
+SLAVIC_ROMAN_MINIMAL <- c("Italy_Lazio_ImperialRoman_Roman", "Turkey_Medieval_Byzantine")
+
+# Modern reference populations tested in slavic_modern.R
+SLAVIC_MODERN_REFS <- c("Bulgarian", "Albanian", "Greek", "Greek_1", "Greek_Crete",
+                        "Hungarian", "Czech", "Polish", "Russian")
+
+# Fixed named models for the report.R Slavic comparison table
+SLAVIC_NAMED_MODELS <- list(
+  list(id="A", sources=c("Poland_EarlyMedieval_Slav","Serbia_LateAntiquity_ImperialRoman"),
+       label="A -- Slavic + Roman Balkans [bundled, for comparison]"),
+  list(id="B", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA"),
+       label="B -- Slavic + Iron Age Balkans"),
+  list(id="C", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA","Turkey_Medieval_Byzantine"),
+       label="C -- Slavic + IA Balkans + Byzantine Anatolia"),
+  list(id="D", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA","Israel_Phoenician"),
+       label="D -- Slavic + IA Balkans + Levantine"),
+  list(id="E", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA","Italy_Lazio_ImperialRoman_Roman"),
+       label="E -- Slavic + IA Balkans + Roman Italian")
+)

@@ -17,10 +17,7 @@ ANCIENT_SOURCES <- c(
   "Turkey_Medieval_Byzantine"
 )
 
-MODERN_REFS <- c(
-  "Bulgarian", "Albanian", "Greek", "Greek_1", "Greek_Crete",
-  "Hungarian", "Czech", "Polish", "Russian"
-)
+MODERN_REFS <- SLAVIC_MODERN_REFS
 
 F2_MODERN_DIR <- sub("f2/?$", "f2_modern/", F2_DIR)
 

@@ -19,8 +19,17 @@ all_pops <- unique(c(TARGET, sources, right, REFERENCES,
 all_pops <- intersect(all_pops, list.dirs(F2_DIR, full.names=FALSE, recursive=FALSE))
 f2 <- f2_from_precomp(F2_DIR)
 
+# ── Dataset stats (computed from the actual merged files, not hardcoded) ─────
+cat("Reading merged dataset stats...\n")
+n_snps   <- nrow(data.table::fread(paste0(MERGED_PREFIX, ".snp"), header=FALSE))
+ind_tab  <- read.table(paste0(MERGED_PREFIX, ".ind"), header=FALSE,
+                       col.names=c("id","sex","pop"), stringsAsFactors=FALSE)
+n_ind    <- nrow(ind_tab)
+n_target_inds  <- sum(ind_tab$pop == TARGET)
+n_ancient_inds <- n_ind - n_target_inds
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
-FILL <- c(Steppe="#E69F00", WHG="#56B4E9", Anatolian="#009E73")
+FILL <- c(Steppe="#E69F00", WHG="#56B4E9", "Balkan HG"="#56B4E9", Anatolian="#009E73")
 BASE <- theme_bw(base_size=11) + theme(plot.title=element_text(face="bold", size=13))
 
 voidtext <- function(lines, title="", mono=TRUE) {
@@ -36,78 +45,7 @@ voidtext <- function(lines, title="", mono=TRUE) {
           plot.margin=margin(15,15,15,15))
 }
 
-# ── Page 1: Title (built after qpAdm so it can use real numbers) ──────────────
-# placeholder -- filled in after main_res is computed
-build_title_page <- function(main_res) {
-  if (!is.null(main_res) && nrow(main_res) == 3) {
-    w  <- setNames(main_res$weight, main_res$label)
-    se <- setNames(main_res$se,     main_res$label)
-    z  <- w / se
-    fmt <- function(lbl)
-      sprintf("%3.0f%% +/- %2.0f%%  (z = %.1f)", w[lbl]*100, se[lbl]*100, z[lbl])
-    anc_lines <- c(
-      sprintf("    Steppe (Yamnaya, Russia ~3000 BCE)         %s", fmt("Steppe")),
-      sprintf("    Balkan HG (Iron Gates, Serbia ~8000 BCE)   %s", fmt("Balkan HG")),
-      sprintf("    Anatolian EEF (Turkey Neolithic ~7000 BCE) %s", fmt("Anatolian"))
-    )
-    hg_z <- z["Balkan HG"]
-    z_note <- if (!is.na(hg_z) && hg_z < 2) c(
-      "",
-      "  PRECISION NOTE (Balkan HG)",
-      sprintf("  z = %.1f means the 15%% estimate is only 1.5 SEs from zero --", hg_z),
-      "  compatible with anywhere from ~0% to ~35% at 2-sigma. This does not",
-      "  mean the HG ancestry is absent: the 3-source model fits well (p=0.27)",
-      "  and the direction is consistent. Steppe and Anatolian are solid (z~6).",
-      "  The HG component is hardest to pin down from a single genome because",
-      "  it is the smallest of the three, and WHG/EHG populations are genetically",
-      "  closer to each other than to the other two sources, leaving less",
-      "  statistical leverage. Ten relatives would give a tight estimate; N=1",
-      "  cannot."
-    ) else NULL
-    z_note2 <- NULL
-  } else {
-    anc_lines <- c(
-      "    ~47%   Steppe pastoralist  (Yamnaya, Russia ~3000 BCE)",
-      "    ~15%   Balkan Hunter-Gatherer  (Iron Gates, Serbia ~8000 BCE)",
-      "    ~38%   Anatolian Early Farmer  (Turkey Neolithic ~7000 BCE)"
-    )
-    z_note <- z_note2 <- NULL
-  }
-
-  c(
-    "",
-    sprintf("Target individual:  %s", TARGET),
-    sprintf("Reference panel:    AADR v66.p1 (1240k SNP panel)"),
-    sprintf("Analysis date:      %s", Sys.Date()),
-    sprintf("SNPs (merged):      725,361  |  Ancient individuals: 23,089"),
-    "",
-    strrep("-", 52),
-    "",
-    "  GENOME-WIDE ANCESTRY (qpAdm, 3-source European model)",
-    "",
-    anc_lines,
-    "",
-    strrep("-", 52),
-    "",
-    "  All three Bronze Age sources are required; no model without",
-    "  Anatolian EEF passes (p < 0.05). No detectable direct CHG",
-    "  ancestry beyond what is already present in Yamnaya.",
-    z_note, z_note2,
-    "",
-    strrep("-", 52),
-    "",
-    "  HUNTER-GATHERER NOTE",
-    "",
-    "  Iron Gates Mesolithic (Serbia/Romania ~8000 BCE) fits marginally",
-    "  better than W. European Loschbour (p=0.27 vs p=0.09) and is",
-    "  geographically appropriate for a Macedonian/Serbian individual.",
-    "  Iron Gates HG were EHG-shifted (not purely WHG-like), consistent",
-    "  with direct ancestry from pre-Neolithic Balkan hunter-gatherers.",
-    ""
-  )
-}
-
-# ── Page 2: Main qpAdm model ─────────────────────────────────────────────────
+# ── Page 2 data: main qpAdm model ────────────────────────────────────────────
 cat("Running qpAdm (main model)...\n")
 
 run_qpadm <- function(ref) {
@@ -128,6 +66,109 @@ run_qpadm <- function(ref) {
 }
 
 main_res <- run_qpadm("Primary")
+
+# ── Page 3 data: qpAdm rotating (computed early so the title page can cite it) ──
+cat("Running qpAdm rotating...\n")
+
+SOURCE_POOL <- c("Russia_Samara_EBA_Yamnaya", "Serbia_IronGates_Mesolithic",
+                 "Luxembourg_Loschbour_Mesolithic", "Turkey_N",
+                 "Russia_Karelia_Mesolithic_HG", "Georgia_KotiasKlde_Mesolithic")
+SOURCE_POOL <- intersect(SOURCE_POOL,
+                         list.dirs(F2_DIR, full.names=FALSE, recursive=FALSE))
+
+combos <- c(
+  combn(SOURCE_POOL, 2, simplify=FALSE),
+  combn(SOURCE_POOL, 3, simplify=FALSE)
+)
+
+run_one_rot <- function(srcs) {
+  pops <- c(TARGET, srcs, right)
+  f2s  <- tryCatch(f2_from_precomp(F2_DIR, pops=pops), error=function(e) NULL)
+  if (is.null(f2s)) return(NULL)
+  r <- tryCatch(qpadm(f2s, target=TARGET, left=srcs, right=right),
+                error=function(e) NULL)
+  if (is.null(r) || is.null(r$weights)) return(NULL)
+  full  <- r$popdrop %>% filter(!grepl("1", pat)) %>% slice(1)
+  if (nrow(full)==0) return(NULL)
+  w_col <- intersect(c("weight","w","est"), names(r$weights))
+  wts   <- setNames(r$weights[[w_col[1]]], r$weights$left)
+  feasible <- all(wts >= -0.01 & wts <= 1.01)
+  w_str    <- paste(sprintf("%s %.0f%%", names(wts), wts*100), collapse="  ")
+  tibble(n=length(srcs), model=paste(srcs, collapse=" + "),
+         p=full$p, feasible=feasible, weights=w_str)
+}
+
+rot_res <- map_dfr(combos, run_one_rot) %>% arrange(desc(p))
+
+pass <- filter(rot_res, p > 0.05, feasible)
+fail <- filter(rot_res, p <= 0.05 | !feasible)
+
+# ── Page 1: Title (built after qpAdm + rotate so it can cite real numbers) ───
+build_title_page <- function(main_res) {
+  if (!is.null(main_res) && nrow(main_res) == 3) {
+    w  <- setNames(main_res$weight, main_res$label)
+    se <- setNames(main_res$se,     main_res$label)
+    z  <- w / se
+    fmt <- function(lbl)
+      sprintf("%3.0f%% +/- %2.0f%%  (z = %.1f)", w[lbl]*100, se[lbl]*100, z[lbl])
+    anc_lines <- c(
+      sprintf("    Steppe (Yamnaya, Russia ~3000 BCE)         %s", fmt("Steppe")),
+      sprintf("    Balkan HG (Iron Gates, Serbia ~8000 BCE)   %s", fmt("Balkan HG")),
+      sprintf("    Anatolian EEF (Turkey Neolithic ~7000 BCE) %s", fmt("Anatolian"))
+    )
+    hg_z <- z["Balkan HG"]
+    z_note <- if (!is.na(hg_z) && hg_z < 2) c(
+      "",
+      "  PRECISION NOTE (Balkan HG)",
+      sprintf("  z = %.1f means this estimate is close to zero -- compatible", hg_z),
+      "  with a wide range at 2-sigma. This does not mean the component is",
+      "  absent: the smallest of the three sources is hardest to pin down from",
+      "  a single genome, since WHG/EHG-like populations are genetically closer",
+      "  to each other than to the other two sources, leaving less statistical",
+      "  leverage. Multiple related individuals would tighten the estimate;",
+      "  N=1 cannot."
+    ) else NULL
+  } else {
+    anc_lines <- c("    qpAdm model unavailable -- see page 2 for details.")
+    z_note <- NULL
+  }
+
+  rot_note <- if (nrow(rot_res) > 0) c(
+    sprintf("  Of %d alternative 2-/3-source combinations tested from the pool", nrow(rot_res)),
+    sprintf("  (%s), %d pass (p > 0.05, feasible weights). Full list on page 3.",
+            paste(SOURCE_POOL, collapse=", "), nrow(pass))
+  ) else NULL
+
+  c(
+    "",
+    sprintf("Target individual:  %s", TARGET),
+    sprintf("Reference panel:    AADR v66.p1 (1240k SNP panel)"),
+    sprintf("Analysis date:      %s", Sys.Date()),
+    sprintf("SNPs (merged):      %s  |  Ancient individuals: %s",
+            format(n_snps, big.mark=","), format(n_ancient_inds, big.mark=",")),
+    "",
+    strrep("-", 52),
+    "",
+    "  GENOME-WIDE ANCESTRY (qpAdm, 3-source European model)",
+    "",
+    anc_lines,
+    "",
+    strrep("-", 52),
+    "",
+    "  ALTERNATIVE MODELS",
+    "",
+    rot_note,
+    z_note,
+    "",
+    strrep("-", 52),
+    "",
+    "  HUNTER-GATHERER PROXY",
+    "",
+    sprintf("  The Balkan HG component uses %s as its proxy population.", sources[2]),
+    "  Alternative HG proxies can be compared with iron_gates_test.R.",
+    ""
+  )
+}
 
 cat("Building title page...\n")
 title_lines <- build_title_page(main_res)
@@ -183,42 +224,7 @@ p_qpadm <- ggplot(qpadm_dat, aes(x=reference, y=weight*100, fill=label)) +
        x="Reference population", y="Ancestry proportion", fill="Component") +
   BASE + theme(legend.position="bottom", axis.text.x=element_text(angle=30, hjust=1))
 
-# ── Page 3: qpAdm rotating ───────────────────────────────────────────────────
-cat("Running qpAdm rotating...\n")
-
-SOURCE_POOL <- c("Russia_Samara_EBA_Yamnaya", "Serbia_IronGates_Mesolithic",
-                 "Luxembourg_Loschbour_Mesolithic", "Turkey_N",
-                 "Russia_Karelia_Mesolithic_HG", "Georgia_KotiasKlde_Mesolithic")
-SOURCE_POOL <- intersect(SOURCE_POOL,
-                         list.dirs(F2_DIR, full.names=FALSE, recursive=FALSE))
-
-combos <- c(
-  combn(SOURCE_POOL, 2, simplify=FALSE),
-  combn(SOURCE_POOL, 3, simplify=FALSE)
-)
-
-run_one_rot <- function(srcs) {
-  pops <- c(TARGET, srcs, right)
-  f2s  <- tryCatch(f2_from_precomp(F2_DIR, pops=pops), error=function(e) NULL)
-  if (is.null(f2s)) return(NULL)
-  r <- tryCatch(qpadm(f2s, target=TARGET, left=srcs, right=right),
-                error=function(e) NULL)
-  if (is.null(r) || is.null(r$weights)) return(NULL)
-  full  <- r$popdrop %>% filter(!grepl("1", pat)) %>% slice(1)
-  if (nrow(full)==0) return(NULL)
-  w_col <- intersect(c("weight","w","est"), names(r$weights))
-  wts   <- setNames(r$weights[[w_col[1]]], r$weights$left)
-  feasible <- all(wts >= -0.01 & wts <= 1.01)
-  w_str    <- paste(sprintf("%s %.0f%%", names(wts), wts*100), collapse="  ")
-  tibble(n=length(srcs), model=paste(srcs, collapse=" + "),
-         p=full$p, feasible=feasible, weights=w_str)
-}
-
-rot_res <- map_dfr(combos, run_one_rot) %>% arrange(desc(p))
-
-pass <- filter(rot_res, p > 0.05, feasible)
-fail <- filter(rot_res, p <= 0.05 | !feasible)
-
+# ── Page 3: qpAdm rotating (text table, using rot_res computed above) ───────
 rot_lines <- c(
   sprintf("%-3s  %-6s  %-8s  %s", "n", "p", "feasible", "weights / model"),
   strrep("-", 78),
@@ -319,18 +325,7 @@ SLAVIC_OG <- c("Mbuti","Yoruba","Han","Papuan",
                 "Ethiopia_MotaCave_4500BP","China_TianyuanCave_UP",
                 "Iran_GanjDareh_N","Israel_Natufian","Turkey_N")
 
-SLAVIC_MODELS <- list(
-  list(id="A", sources=c("Poland_EarlyMedieval_Slav","Serbia_LateAntiquity_ImperialRoman"),
-       label="A -- Slavic + Roman Balkans [bundled, baseline]"),
-  list(id="B", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA"),
-       label="B -- Slavic + Iron Age Balkans  *** best ***"),
-  list(id="C", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA","Turkey_Medieval_Byzantine"),
-       label="C -- Slavic + IA Balkans + Byzantine Anatolia"),
-  list(id="D", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA","Israel_Phoenician"),
-       label="D -- Slavic + IA Balkans + Levantine"),
-  list(id="E", sources=c("Poland_EarlyMedieval_Slav","Croatia_EIA","Italy_Lazio_ImperialRoman_Roman"),
-       label="E -- Slavic + IA Balkans + Roman Italian")
-)
+SLAVIC_MODELS <- SLAVIC_NAMED_MODELS
 
 run_slavic_model <- function(f2s, sources) {
   r <- tryCatch(
@@ -366,6 +361,10 @@ if (!is.null(f2_slav)) {
   })
   names(slavic_results) <- sapply(SLAVIC_MODELS, `[[`, "id")
 
+  # Determine the best-supported model: highest p among feasible fits.
+  model_p <- sapply(slavic_results, function(r) if (!is.null(r) && r$feasible) r$p else NA_real_)
+  best_id <- if (all(is.na(model_p))) NA_character_ else names(model_p)[which.max(model_p)]
+
   # ── Page 6: text table ──
   hdr  <- sprintf("  %-2s  %-6s  %-10s  %-50s  %s", "M", "p", "weights", "source", "weight ± se  (z)")
   sep  <- strrep("-", 100)
@@ -377,13 +376,14 @@ if (!is.null(f2_slav)) {
   for (i in seq_along(SLAVIC_MODELS)) {
     m   <- SLAVIC_MODELS[[i]]
     res <- slavic_results[[m$id]]
+    best_marker <- if (!is.na(best_id) && m$id == best_id) "  *** best ***" else ""
     if (is.null(res)) {
       tbl_lines <- c(tbl_lines, sprintf("  %s  [error]  %s", m$id, m$label))
       next
     }
     feas <- if (res$feasible) "feasible  " else "INFEASIBLE"
     tbl_lines <- c(tbl_lines,
-      sprintf("  %s   %.4f  %s  %s", m$id, res$p, feas, m$label)
+      sprintf("  %s   %.4f  %s  %s%s", m$id, res$p, feas, m$label, best_marker)
     )
     for (nm in names(res$wts)) {
       tbl_lines <- c(tbl_lines,
@@ -393,18 +393,31 @@ if (!is.null(f2_slav)) {
     }
     tbl_lines <- c(tbl_lines, "")
   }
-  tbl_lines <- c(tbl_lines, sep, "",
-    "Interpretation:",
-    "  Model B is the cleanest supported model: ~48% Slavic + ~52% Iron Age Balkans.",
-    "  Adding Byzantine Anatolian (C) or Levantine (D) gives infeasible weights --",
-    "  those populations are too collinear with Croatia_EIA (both are heavily",
-    "  Anatolian-Neolithic-derived) to separate. Only Roman Italian (E) is distinct",
-    "  enough to fit, but z = +0.40 means it is statistically marginal (noise).",
-    "  The ~50/50 Slavic split is robust across all models that pass."
-  )
+
+  interp_lines <- if (!is.na(best_id)) {
+    bm  <- slavic_results[[best_id]]
+    lbl <- SLAVIC_MODELS[[which(sapply(SLAVIC_MODELS, `[[`, "id") == best_id)]]$label
+    wt_str <- paste(sprintf("%s=%.0f%%", names(bm$wts), bm$wts*100), collapse=" + ")
+    n_infeasible <- sum(sapply(slavic_results, function(r) !is.null(r) && !r$feasible))
+    c(
+      "Interpretation:",
+      sprintf("  Best-supported model: %s (p=%.3f)", lbl, bm$p),
+      sprintf("  %s", wt_str),
+      if (n_infeasible > 0) c("",
+        sprintf("  %d of %d tested models have out-of-range (infeasible) weights --",
+                n_infeasible, length(slavic_results)),
+        "  the extra source could not be statistically separated from the others",
+        "  with this data. This does not mean those models are wrong, just",
+        "  unresolved by the available populations.") else NULL
+    )
+  } else {
+    c("Interpretation:", "  No feasible passing model found among those tested.")
+  }
+  tbl_lines <- c(tbl_lines, sep, "", interp_lines)
   p_slavic_text <- voidtext(tbl_lines, title="Slavic / pre-Slavic ancestry model")
 
   # ── Page 7: bar chart (Models A, B, E) ──
+  res_A <- slavic_results[["A"]]
   res_B <- slavic_results[["B"]]
   res_E <- slavic_results[["E"]]
   SHORT <- c(
@@ -425,6 +438,7 @@ if (!is.null(f2_slav)) {
   )
 
   make_bar_dat <- function(res, model_id) {
+    if (is.null(res)) return(NULL)
     tibble(
       model  = model_id,
       source = SHORT[names(res$wts)],
@@ -434,7 +448,7 @@ if (!is.null(f2_slav)) {
   }
 
   bar_dat <- bind_rows(
-    make_bar_dat(slavic_results[["A"]], "A: Slavic +\nRoman Balkans"),
+    make_bar_dat(res_A, "A: Slavic +\nRoman Balkans"),
     make_bar_dat(res_B, "B: Slavic +\nIron Age Balkans"),
     make_bar_dat(res_E, "E: Slavic + Iron Age\nBalkans + Roman Italian")
   ) %>%
@@ -449,6 +463,8 @@ if (!is.null(f2_slav)) {
            ymin = (ytop/100 - se) * 100,
            ymax = (ytop/100 + se) * 100)
 
+  best_label <- if (!is.na(best_id)) sprintf("Best model: %s (p=%.2f)", best_id, model_p[best_id]) else "No passing model"
+
   p_slavic_chart <- ggplot(bar_dat, aes(x=model, y=weight*100, fill=source)) +
     geom_col(position="stack", width=0.55) +
     geom_errorbar(data=err_dat,
@@ -457,16 +473,15 @@ if (!is.null(f2_slav)) {
     scale_fill_manual(values=SCOL, drop=FALSE) +
     scale_y_continuous(labels=function(x) paste0(x,"%"), limits=c(0,115)) +
     labs(title="Slavic model: ancestry proportions",
-         subtitle=paste0("Target: ", TARGET,
-                         "  |  Best model: B (p=", sprintf("%.2f", res_B$p),
-                         ")  |  Error bars = ±1 SE  |  Sources: Poland_EarlyMedieval_Slav, Croatia_EIA"),
+         subtitle=paste0("Target: ", TARGET, "  |  ", best_label,
+                         "  |  Error bars = ±1 SE"),
          x=NULL, y="Ancestry proportion", fill="Source") +
     BASE + theme(legend.position="bottom",
                  axis.text.x=element_text(size=11))
 
 } else {
   msg <- c("Slavic model cache not found.",
-           "Run slavic_model.R first to build me/f2_slavic/, then re-run report.R.")
+           sprintf("Run slavic_model.R first to build %s, then re-run report.R.", SLAVIC_F2_DIR))
   p_slavic_text  <- voidtext(msg, title="Slavic / pre-Slavic ancestry model")
   p_slavic_chart <- p_slavic_text
 }

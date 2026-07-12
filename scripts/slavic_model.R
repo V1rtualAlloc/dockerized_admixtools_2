@@ -32,33 +32,18 @@ ALL_SOURCES <- c(
 
 # Reference populations for cross-population comparison
 SLAVIC_REFS <- c(
-  "me"
+  TARGET
 )
 
 # Three-role rotating pool:
 #   Slavic migrant  x  Balkan Iron Age substrate  x  non-Balkan Roman/Byzantine import
 # Each combination has exactly one population from each role.
 
-SLAVIC_POOL <- c(
-  "Poland_EarlyMedieval_Slav",
-  "Poland_EarlySlav"
-)
+SLAVIC_POOL <- SLAVIC_MIGRANT_POOL
 
-BALKAN_IA_POOL <- c(
-  "Croatia_EIA",
-  "Bulgaria_KapitanAndreevo_EIA",
-  "NorthMacedonia_IA"
-)
+BALKAN_IA_POOL <- SLAVIC_BALKAN_IA_CORE
 
-ROMAN_POOL <- c(
-  "Italy_Lazio_ImperialRoman_Roman",
-  "Italy_Lazio_LateAntiquity_ImperialRoman_Roman",
-  "Italy_Lazio_LateAntiquity_Roman",
-  "Turkey_Medieval_Byzantine",
-  "Turkey_EarlyMedieval_Byzantine",
-  "Turkey_LateAntiquity_Byzantine",
-  "Turkey_LateAntiquity_ImperialRoman"
-)
+ROMAN_POOL <- SLAVIC_ROMAN_FULL
 
 ROTATE_POOL <- unique(c(SLAVIC_POOL, BALKAN_IA_POOL, ROMAN_POOL))
 

@@ -19,9 +19,9 @@ source("/data/scripts/config.R")
 BASE_OUTGROUPS <- SLAVIC_OUTGROUPS
 DEEP_OUTGROUPS <- c(SLAVIC_OUTGROUPS, "Russia_Samara_EBA_Yamnaya", "Serbia_IronGates_Mesolithic")
 
-SOURCES <- c("Poland_EarlyMedieval_Slav", "Croatia_EIA")
+SOURCES <- SLAVIC_BEST_SOURCES
 
-TEST_F2_DIR <- "/data/me/f2_slavic_deepout/"
+TEST_F2_DIR <- sub("f2/?$", "f2_slavic_deepout/", F2_DIR)
 
 all_pops <- unique(c(TARGET, SOURCES, DEEP_OUTGROUPS))
 

@@ -7,6 +7,7 @@
 # Stray build/debug artifacts
 gmon.out
 me.txt
+*.txt
 
 # Local machine-specific config (copy from .env.example)
 .env
